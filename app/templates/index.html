@@ -47,6 +47,9 @@
             <input type="text" class="form-control" id="backupConfigFileName" value="backup-alldb-config.sql">
           </div>
           <button type="submit" class="btn btn-primary">Backup</button>
+          <div class="progress my-3" id="backupProgress" style="display: none;">
+            <div class="progress-bar" role="progressbar" style="width: 0%;" id="backupProgressBar">0%</div>
+          </div>
         </form>
       </div>
     </div>
@@ -93,6 +96,9 @@
           </div>
     
           <button type="submit" class="btn btn-success">Restore</button>
+          <div class="progress my-3" id="restoreProgress" style="display: none;">
+            <div class="progress-bar" role="progressbar" style="width: 0%;" id="restoreProgressBar">0%</div>
+          </div>
         </form>
       </div>
     </div>
@@ -107,6 +113,16 @@
       </div>
     </div>
   </div>
+
+    <!-- Overlay durante l'operazione -->
+<div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 9999; display: flex; justify-content: center; align-items: center; color: white; font-size: 1.5rem;">
+  <div>
+    <p>Operation is running...</p>
+    <div class="spinner-border text-light" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+</div>
 
   <script>
     // Show or hide custom host input based on selection
@@ -127,80 +143,145 @@
     });
   
     document.getElementById("backupForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      
-      const backupHost = document.getElementById("backupHost").value === 'custom' ? document.getElementById("backupHostCustom").value : document.getElementById("backupHost").value;
-      const mysqlUser = document.getElementById("mysqlUser").value;
-      const mysqlPassword = document.getElementById("mysqlPassword").value;
-      const backupDatabaseFileName = document.getElementById("backupDatabaseFileName").value;
-      const backupConfigFileName = document.getElementById("backupConfigFileName").value;
+  e.preventDefault();
   
-      // Send backup data to the server
-      fetch('/backup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          host: backupHost,
-          user: mysqlUser,
-          password: mysqlPassword,
-          filename_db: backupDatabaseFileName,
-          filename_config: backupConfigFileName
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          alert(`Backup successful: ${data.message}`);
-        } else {
-          alert(`Backup failed: ${data.message}`);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to create backup.');
-      });
-    });
+  const backupHost = document.getElementById("backupHost").value === 'custom' ? document.getElementById("backupHostCustom").value : document.getElementById("backupHost").value;
+  const mysqlUser = document.getElementById("mysqlUser").value;
+  const mysqlPassword = document.getElementById("mysqlPassword").value;
+  const backupDatabaseFileName = document.getElementById("backupDatabaseFileName").value;
+  const backupConfigFileName = document.getElementById("backupConfigFileName").value;
+
+  // Mostra l'overlay e la barra di progresso
+  const overlay = document.getElementById("overlay");
+  overlay.style.display = "flex";
+
+  const progressBar = document.getElementById("backupProgressBar");
+  const progressContainer = document.getElementById("backupProgress");
+  progressContainer.style.display = "block";
+  progressBar.style.width = "0%";
+  progressBar.textContent = "0%";
+
+  // Incrementa progressivamente la barra (simulazione)
+  let progress = 0;
+  const interval = setInterval(() => {
+    if (progress >= 80) {
+      clearInterval(interval); // Ferma l'incremento quando raggiunge 80%
+    } else {
+      progress += 5;
+      progressBar.style.width = `${progress}%`;
+      progressBar.textContent = `${progress}%`;
+    }
+  }, 200);
+
+  // Invia la richiesta di backup
+  fetch('/backup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      host: backupHost,
+      user: mysqlUser,
+      password: mysqlPassword,
+      filename_db: backupDatabaseFileName,
+      filename_config: backupConfigFileName
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    clearInterval(interval);
+    progressBar.style.width = "100%";
+    progressBar.textContent = "100%";
+    overlay.style.display = "none"; // Nascondi l'overlay
+
+    if (data.status === 'success') {
+      alert(`Backup successful: ${data.message}`);
+    } else {
+      alert(`Backup failed: ${data.message}`);
+    }
+  })
+  .catch(error => {
+    clearInterval(interval);
+    progressBar.style.width = "100%";
+    progressBar.textContent = "Error";
+    overlay.style.display = "none"; // Nascondi l'overlay
+
+    console.error('Error:', error);
+    alert('Failed to create backup.');
+  });
+});
+
+document.getElementById("restoreForm").addEventListener("submit", function(e) {
+  e.preventDefault();
   
-    document.getElementById("restoreForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      
-      const restoreHost = document.getElementById("restoreHost").value === 'custom' ? document.getElementById("restoreHostCustom").value : document.getElementById("restoreHost").value;
-      const restoreUser = document.getElementById("restoreUser").value;
-      const restorePassword = document.getElementById("restorePassword").value;
-      const backupFile = document.getElementById("backupFile").files[0];
-  
-      if (!backupFile) {
-        alert('Please select a backup file for restore.');
-        return;
-      }
-  
-      // Prepare FormData for file upload
-      const formData = new FormData();
-      formData.append('restoreHost', restoreHost);
-      formData.append('restoreUser', restoreUser);
-      formData.append('restorePassword', restorePassword);
-      formData.append('file', backupFile);
-  
-      // Send restore request to server
-      fetch('/restore', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          alert(`Restore successful: ${data.message}`);
-        } else {
-          alert(`Restore failed: ${data.message}`);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to restore backup.');
-      });
-    });
+  const restoreHost = document.getElementById("restoreHost").value === 'custom' ? document.getElementById("restoreHostCustom").value : document.getElementById("restoreHost").value;
+  const restoreUser = document.getElementById("restoreUser").value;
+  const restorePassword = document.getElementById("restorePassword").value;
+  const backupFile = document.getElementById("backupFile").files[0];
+
+  if (!backupFile) {
+    alert('Please select a backup file for restore.');
+    return;
+  }
+
+  // Mostra l'overlay e la barra di progresso
+  const overlay = document.getElementById("overlay");
+  overlay.style.display = "flex";
+
+  const progressBar = document.getElementById("restoreProgressBar");
+  const progressContainer = document.getElementById("restoreProgress");
+  progressContainer.style.display = "block";
+  progressBar.style.width = "0%";
+  progressBar.textContent = "0%";
+
+  // Incrementa progressivamente la barra (simulazione)
+  let progress = 0;
+  const interval = setInterval(() => {
+    if (progress >= 80) {
+      clearInterval(interval); // Ferma l'incremento quando raggiunge 80%
+    } else {
+      progress += 5;
+      progressBar.style.width = `${progress}%`;
+      progressBar.textContent = `${progress}%`;
+    }
+  }, 200);
+
+  // Prepara FormData per il file di ripristino
+  const formData = new FormData();
+  formData.append('restoreHost', restoreHost);
+  formData.append('restoreUser', restoreUser);
+  formData.append('restorePassword', restorePassword);
+  formData.append('file', backupFile);
+
+  // Invia la richiesta di ripristino
+  fetch('/restore', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    clearInterval(interval);
+    progressBar.style.width = "100%";
+    progressBar.textContent = "100%";
+    overlay.style.display = "none"; // Nascondi l'overlay
+
+    if (data.status === 'success') {
+      alert(`Restore successful: ${data.message}`);
+    } else {
+      alert(`Restore failed: ${data.message}`);
+    }
+  })
+  .catch(error => {
+    clearInterval(interval);
+    progressBar.style.width = "100%";
+    progressBar.textContent = "Error";
+    overlay.style.display = "none"; // Nascondi l'overlay
+
+    console.error('Error:', error);
+    alert('Failed to restore backup.');
+  });
+});
+
   
     // Function to load available backups
     function loadBackups() {
@@ -227,6 +308,11 @@
   
     // Load backups when the page loads
     window.onload = loadBackups;
+    window.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("overlay");
+  overlay.style.display = "none"; // Nascondi esplicitamente l'overlay
+});
   </script>
+
 </body>
 </html>
