@@ -25,6 +25,18 @@ This service allows you to easily and efficiently back up and restore MySQL data
 - Database access with sufficient permissions to perform backups and restores.
 - **docker** (https://docs.docker.com/engine/install/) and **docker-compose** (https://docs.docker.com/compose/install/) installed on your system
 
+## How to Run the Service
+1. Clone the repository
+```bash
+git clone https://github.com/lm2git/mysql-backup-restore-ui.git
+cd mysql-backup-restore-ui
+docker-compose up --build -d 
+```
+## How to remove Service 
+```bash
+docker-compose down -v
+```
+
 ## How to Use
 
 1. **Backup Configuration**:
@@ -52,14 +64,3 @@ The service exposes the following endpoints for backup and restore operations:
 - **GET /list-backups**: Retrieve the list of available backups.
 
 
-## How to Run the Service
-1. Clone the repository
-```bash
-git clone https://github.com/lm2git/mysql-backup-restore-ui.git
-cd mysql-backup-restore-ui
-docker-compose up --build -d 
-```
-## How to remove Service 
-```bash
-docker-compose down -v
-```
