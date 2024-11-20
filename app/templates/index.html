@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySQL Backup and Restore</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1 class="my-4">MySQL Backup and Restore</h1>
+
+    <!-- Backup Form -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3>Create Backup</h3>
+        <form id="backupForm">
+          <!-- Host Selection for Backup -->
+          <div class="mb-3">
+            <label for="backupHost" class="form-label">Backup Host</label>
+            <select class="form-control" id="backupHost">
+              <option value="">Select a Host</option>
+              <option value="localhost">localhost</option>
+              <option value="custom">Custom Host</option>
+            </select>
+          </div>
+          <!-- Custom Host Input -->
+          <div class="mb-3" id="customBackupHost" style="display:none;">
+            <label for="backupHostCustom" class="form-label">Custom Backup Host</label>
+            <input type="text" class="form-control" id="backupHostCustom" placeholder="Enter source host (e.g., 192.168.1.100)">
+          </div>
+          <div class="mb-3">
+            <label for="mysqlUser" class="form-label">MySQL User</label>
+            <input type="text" class="form-control" id="mysqlUser" placeholder="Enter MySQL User">
+          </div>
+          <div class="mb-3">
+            <label for="mysqlPassword" class="form-label">MySQL Password</label>
+            <input type="password" class="form-control" id="mysqlPassword" placeholder="Enter MySQL Password">
+          </div>
+          <div class="mb-3">
+            <label for="backupDatabaseFileName" class="form-label">Backup Database File Name</label>
+            <input type="text" class="form-control" id="backupDatabaseFileName" value="backup-alldb.sql">
+          </div>
+          <div class="mb-3">
+            <label for="backupConfigFileName" class="form-label">Backup Config File Name</label>
+            <input type="text" class="form-control" id="backupConfigFileName" value="backup-alldb-config.sql">
+          </div>
+          <button type="submit" class="btn btn-primary">Backup</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Restore Form -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3>Restore Backup</h3>
+        <form id="restoreForm">
+          <!-- Restore Host Selection -->
+          <div class="mb-3">
+            <label for="restoreHost" class="form-label">Restore Host</label>
+            <select class="form-control" id="restoreHost">
+              <option value="">Select a Host</option>
+              <option value="localhost">localhost</option>
+              <option value="remoteHost1">remoteHost1</option>
+              <option value="remoteHost2">remoteHost2</option>
+              <option value="custom">Custom Host</option>
+            </select>
+          </div>
+          
+          <!-- Custom Host Input -->
+          <div class="mb-3" id="customRestoreHost" style="display:none;">
+            <label for="restoreHostCustom" class="form-label">Custom Restore Host</label>
+            <input type="text" class="form-control" id="restoreHostCustom" placeholder="Enter target host (e.g., 192.168.1.100)">
+          </div>
+          
+          <!-- MySQL User for Restore -->
+          <div class="mb-3">
+            <label for="restoreUser" class="form-label">MySQL User</label>
+            <input type="text" class="form-control" id="restoreUser" placeholder="Enter MySQL User">
+          </div>
+          
+          <!-- MySQL Password for Restore -->
+          <div class="mb-3">
+            <label for="restorePassword" class="form-label">MySQL Password</label>
+            <input type="password" class="form-control" id="restorePassword" placeholder="Enter MySQL Password">
+          </div>
+    
+          <!-- Backup File Input -->
+          <div class="mb-3">
+            <label for="backupFile" class="form-label">Backup File</label>
+            <input type="file" class="form-control" id="backupFile" accept=".sql">
+          </div>
+    
+          <button type="submit" class="btn btn-success">Restore</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Available Backups Section -->
+    <div class="card">
+      <div class="card-body">
+        <h3>Available Backups</h3>
+        <div id="availableBackups">
+          <!-- Dynamically load available backups here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Show or hide custom host input based on selection
+    document.getElementById('backupHost').addEventListener('change', function() {
+      if (this.value === 'custom') {
+        document.getElementById('customBackupHost').style.display = 'block';
+      } else {
+        document.getElementById('customBackupHost').style.display = 'none';
+      }
+    });
+  
+    document.getElementById('restoreHost').addEventListener('change', function() {
+      if (this.value === 'custom') {
+        document.getElementById('customRestoreHost').style.display = 'block';
+      } else {
+        document.getElementById('customRestoreHost').style.display = 'none';
+      }
+    });
+  
+    document.getElementById("backupForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      const backupHost = document.getElementById("backupHost").value === 'custom' ? document.getElementById("backupHostCustom").value : document.getElementById("backupHost").value;
+      const mysqlUser = document.getElementById("mysqlUser").value;
+      const mysqlPassword = document.getElementById("mysqlPassword").value;
+      const backupDatabaseFileName = document.getElementById("backupDatabaseFileName").value;
+      const backupConfigFileName = document.getElementById("backupConfigFileName").value;
+  
+      // Send backup data to the server
+      fetch('/backup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          host: backupHost,
+          user: mysqlUser,
+          password: mysqlPassword,
+          filename_db: backupDatabaseFileName,
+          filename_config: backupConfigFileName
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          alert(`Backup successful: ${data.message}`);
+        } else {
+          alert(`Backup failed: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to create backup.');
+      });
+    });
+  
+    document.getElementById("restoreForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      const restoreHost = document.getElementById("restoreHost").value === 'custom' ? document.getElementById("restoreHostCustom").value : document.getElementById("restoreHost").value;
+      const restoreUser = document.getElementById("restoreUser").value;
+      const restorePassword = document.getElementById("restorePassword").value;
+      const backupFile = document.getElementById("backupFile").files[0];
+  
+      if (!backupFile) {
+        alert('Please select a backup file for restore.');
+        return;
+      }
+  
+      // Prepare FormData for file upload
+      const formData = new FormData();
+      formData.append('restoreHost', restoreHost);
+      formData.append('restoreUser', restoreUser);
+      formData.append('restorePassword', restorePassword);
+      formData.append('file', backupFile);
+  
+      // Send restore request to server
+      fetch('/restore', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          alert(`Restore successful: ${data.message}`);
+        } else {
+          alert(`Restore failed: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to restore backup.');
+      });
+    });
+  
+    // Function to load available backups
+    function loadBackups() {
+      fetch('/list-backups')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const availableBackupsDiv = document.getElementById('availableBackups');
+            availableBackupsDiv.innerHTML = ''; // Clear previous content
+  
+            if (data.files.length === 0) {
+              availableBackupsDiv.innerHTML = '<p>No backups available.</p>';
+            } else {
+              data.files.forEach(file => {
+                const backupItem = document.createElement('div');
+                backupItem.classList.add('backup-item');
+                backupItem.innerHTML = `<p>${file}</p>`;
+                availableBackupsDiv.appendChild(backupItem);
+              });
+            }
+          }
+        });
+    }
+  
+    // Load backups when the page loads
+    window.onload = loadBackups;
+  </script>
+</body>
+</html>
